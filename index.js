@@ -1,4 +1,4 @@
-// index.js – TonyOS AI Command Backend
+// index.js – TonyOS backend (Render + Postgres + OpenAI)
 
 require("dotenv").config();
 const express = require("express");
@@ -6,8 +6,7 @@ const cors = require("cors");
 const { OpenAI } = require("openai");
 const { Pool } = require("pg");
 
-// ==== BASIC SERVER SETUP ====
-
+// ---------- BASIC SERVER SETUP ----------
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -17,100 +16,105 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ==== POSTGRES SETUP ====
-
-// Render sets DATABASE_URL and we set RENDER=true in env.
-// Locally you can use your own DATABASE_URL or fall back to localhost.
-const isRender = !!process.env.RENDER;
-
+// ---------- POSTGRES SETUP ----------
 const pool = new Pool({
   connectionString:
     process.env.DATABASE_URL ||
     "postgresql://tonymartinez@localhost:5432/tonyos",
-  ssl: isRender
-    ? {
-        rejectUnauthorized: false, // required by Render managed Postgres
-      }
-    : undefined,
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : false,
 });
 
-// Initialize DB schema
 async function initDb() {
-  const ddl = `
+  // tasks table (matches what you've already been using)
+  const ddlTasks = `
     CREATE TABLE IF NOT EXISTS tasks (
-      id               SERIAL PRIMARY KEY,
-      business_id      INTEGER,
-      project_id       INTEGER,
-      title            TEXT NOT NULL,
-      description      TEXT,
-      status           TEXT NOT NULL DEFAULT 'open',       -- open | doing | scheduled | done
-      priority         INTEGER NOT NULL DEFAULT 3,         -- 1 = highest
-      leverage_score   INTEGER DEFAULT 1,
-      risk_score       INTEGER DEFAULT 1,
-      friction_score   INTEGER DEFAULT 1,
-      due_date         TIMESTAMPTZ,
+      id                SERIAL PRIMARY KEY,
+      business_id       INTEGER,
+      project_id        INTEGER,
+      title             TEXT    NOT NULL,
+      description       TEXT,
+      status            TEXT    NOT NULL DEFAULT 'open',   -- open | in_progress | done
+      priority          INTEGER NOT NULL DEFAULT 3,        -- 1 = highest
+      leverage_score    INTEGER,
+      risk_score        INTEGER,
+      friction_score    INTEGER,
+      due_date          TIMESTAMPTZ,
       estimated_minutes INTEGER,
-      bucket           TEXT NOT NULL DEFAULT 'today',      -- today | this_week | later | backlog
-      area             TEXT,                               -- e.g. 'TM Weddings', 'Personal'
-      created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-      updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+      bucket            TEXT    NOT NULL DEFAULT 'later',  -- today | this_week | later
+      area              TEXT,
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       assigned_person_id INTEGER
     );
   `;
-
-  await pool.query(ddl);
+  await pool.query(ddlTasks);
   console.log("✅ Postgres initialized (TonyOS schema ready)");
 }
 
-// Small helper to keep updated_at correct
-async function touchTask(id) {
-  await pool.query(
-    "UPDATE tasks SET updated_at = now() WHERE id = $1",
-    [id]
-  );
+// ---------- HELPERS ----------
+function cleanTaskRow(row) {
+  // make sure API shape is nice for the frontend
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    priority: row.priority,
+    leverage_score: row.leverage_score,
+    risk_score: row.risk_score,
+    friction_score: row.friction_score,
+    due_date: row.due_date,
+    estimated_minutes: row.estimated_minutes,
+    bucket: row.bucket,
+    area: row.area,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    business_id: row.business_id,
+    project_id: row.project_id,
+    assigned_person_id: row.assigned_person_id,
+  };
 }
 
-// ==== ROUTES ====
+// ---------- ROUTES ----------
 
 // Health check
-app.get("/health", async (req, res) => {
-  try {
-    await pool.query("SELECT 1");
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("Health check failed", err);
-    res.status(500).json({ ok: false, error: "db_error" });
-  }
+app.get("/health", (req, res) => {
+  res.json({ ok: true, env: process.env.NODE_ENV || "development" });
 });
 
-// Get all tasks (your dashboard groups them client-side)
+// ----- TASKS -----
+
+// Get all tasks
 app.get("/tasks", async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM tasks ORDER BY created_at ASC"
+      "SELECT * FROM tasks ORDER BY created_at ASC;"
     );
-    res.json(result.rows);
+    res.json(result.rows.map(cleanTaskRow));
   } catch (err) {
-    console.error("GET /tasks error", err);
+    console.error("GET /tasks error:", err);
     res.status(500).json({ error: "failed_to_fetch_tasks" });
   }
 });
 
-// Create a single task (Quick Add form)
+// Create task
 app.post("/tasks", async (req, res) => {
   try {
     const {
       title,
-      description = "",
+      description = null,
       area = null,
-      bucket = "today",
-      priority = 3,
-      leverage_score = 1,
-      risk_score = 1,
-      friction_score = 1,
-      due_date = null,
-      estimated_minutes = null,
       status = "open",
+      bucket = "later",
+      priority = 3,
+      due_date = null,
+      leverage_score = null,
+      risk_score = null,
+      friction_score = null,
+      estimated_minutes = null,
       business_id = null,
       project_id = null,
       assigned_person_id = null,
@@ -122,233 +126,193 @@ app.post("/tasks", async (req, res) => {
 
     const result = await pool.query(
       `
-        INSERT INTO tasks
-          (business_id, project_id, title, description,
-           status, priority, leverage_score, risk_score, friction_score,
-           due_date, estimated_minutes, bucket, area)
-        VALUES
-          ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-        RETURNING *;
-      `,
+      INSERT INTO tasks
+        (title, description, status, bucket, priority,
+         due_date, leverage_score, risk_score, friction_score,
+         estimated_minutes, area, business_id, project_id,
+         assigned_person_id, created_at, updated_at)
+      VALUES
+        ($1,$2,$3,$4,$5,
+         $6,$7,$8,$9,
+         $10,$11,$12,$13,
+         $14, NOW(), NOW())
+      RETURNING *;
+    `,
       [
-        business_id,
-        project_id,
         title.trim(),
         description,
         status,
+        bucket,
         priority,
+        due_date,
         leverage_score,
         risk_score,
         friction_score,
-        due_date,
         estimated_minutes,
-        bucket,
         area,
+        business_id,
+        project_id,
+        assigned_person_id,
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(cleanTaskRow(result.rows[0]));
   } catch (err) {
-    console.error("POST /tasks error", err);
+    console.error("POST /tasks error:", err);
     res.status(500).json({ error: "failed_to_create_task" });
   }
 });
 
-// Update a task (status, bucket, etc.)
-app.patch("/tasks/:id", async (req, res) => {
+// Mark task complete
+app.patch("/tasks/:id/complete", async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ error: "invalid_id" });
 
-    const fields = [];
-    const values = [];
-    let idx = 1;
-
-    const allowed = [
-      "title",
-      "description",
-      "status",
-      "priority",
-      "leverage_score",
-      "risk_score",
-      "friction_score",
-      "due_date",
-      "estimated_minutes",
-      "bucket",
-      "area",
-      "business_id",
-      "project_id",
-      "assigned_person_id",
-    ];
-
-    for (const key of allowed) {
-      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
-        fields.push(`${key} = $${idx}`);
-        values.push(req.body[key]);
-        idx++;
-      }
-    }
-
-    if (!fields.length) {
-      return res.status(400).json({ error: "no_fields_to_update" });
-    }
-
-    values.push(id);
-    const sql = `
+    const result = await pool.query(
+      `
       UPDATE tasks
-      SET ${fields.join(", ")}, updated_at = now()
-      WHERE id = $${idx}
+      SET status = 'done', updated_at = NOW()
+      WHERE id = $1
       RETURNING *;
-    `;
-
-    const result = await pool.query(sql, values);
+    `,
+      [id]
+    );
 
     if (!result.rows.length) {
       return res.status(404).json({ error: "task_not_found" });
     }
 
-    res.json(result.rows[0]);
+    res.json(cleanTaskRow(result.rows[0]));
   } catch (err) {
-    console.error("PATCH /tasks/:id error", err);
-    res.status(500).json({ error: "failed_to_update_task" });
+    console.error("PATCH /tasks/:id/complete error:", err);
+    res.status(500).json({ error: "failed_to_complete_task" });
   }
 });
 
-// Brain-dump → parse → create tasks (used by the “Parse & Create Tasks” box)
-app.post("/tasks/parse", async (req, res) => {
+// Delete task
+app.delete("/tasks/:id", async (req, res) => {
   try {
-    const {
-      text,
-      default_bucket = "today",
-      default_area = null,
-    } = req.body || {};
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid_id" });
 
+    await pool.query("DELETE FROM tasks WHERE id = $1;", [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("DELETE /tasks/:id error:", err);
+    res.status(500).json({ error: "failed_to_delete_task" });
+  }
+});
+
+// ----- CHAT GPT CONTROL -----
+app.post("/chat", async (req, res) => {
+  try {
+    const { prompt } = req.body || {};
+    if (!prompt || !prompt.trim()) {
+      return res.status(400).json({ error: "prompt_required" });
+    }
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are TonyOS, a ruthless but helpful prioritization engine. " +
+            "Given Tony's tasks, you tell him what to do next and why. " +
+            "Be concise, practical, and use numbered steps when helpful.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+
+    const text =
+      completion.choices?.[0]?.message?.content || "No response from model.";
+    res.json({ response: text });
+  } catch (err) {
+    console.error("POST /chat error:", err);
+    res.status(500).json({ error: err.message || "chat_failed" });
+  }
+});
+
+// ----- BRAIN DUMP → TASKS -----
+app.post("/brain-dump", async (req, res) => {
+  try {
+    const { text, default_bucket, default_area } = req.body || {};
     if (!text || !text.trim()) {
       return res.status(400).json({ error: "text_required" });
     }
 
-    const prompt = `
-You are TonyOS, Tony's execution engine.
-
-User is brain-dumping tasks. Read the text and output a JSON array.
-Each item MUST have: title (string), description (string), bucket (today|this_week|later|backlog), area (string or null), priority (1–3 integer).
-
-If bucket or area are unclear, default bucket = "${default_bucket}", area = ${
-      default_area ? `"${default_area}"` : "null"
-    }.
-
-ONLY output valid JSON. No comments, no extra text.
-Brain dump:
-${text}
-`;
+    const bucket = default_bucket || "today";
+    const area = default_area || null;
 
     const completion = await client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      model: "gpt-4.1-mini",
+      response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: "You convert brain dumps into task JSON." },
-        { role: "user", content: prompt },
+        {
+          role: "system",
+          content:
+            "You are a task extraction engine. " +
+            "Read the user's brain dump and extract clear, actionable tasks. " +
+            "Return ONLY valid JSON in this shape:\n\n" +
+            '{ "tasks": [ { "title": "...", "description": "...", "bucket": "today|this_week|later", "priority": 1-5, "area": "optional" } ] }\n\n' +
+            "If no tasks are found, return {\"tasks\":[]}. No extra commentary.",
+        },
+        { role: "user", content: text },
       ],
-      temperature: 0.2,
     });
 
-    const raw = completion.choices[0]?.message?.content || "[]";
-    let tasks;
+    const raw = completion.choices?.[0]?.message?.content || "{}";
+    let parsed;
     try {
-      tasks = JSON.parse(raw);
+      parsed = JSON.parse(raw);
     } catch (e) {
-      console.error("Failed to parse OpenAI JSON", raw);
-      return res.status(500).json({ error: "ai_parse_failed" });
+      console.error("Brain dump JSON parse error:", e, "raw:", raw);
+      parsed = { tasks: [] };
     }
 
-    if (!Array.isArray(tasks) || !tasks.length) {
-      return res.status(400).json({ error: "no_tasks_found" });
-    }
+    let tasks = parsed.tasks;
+    if (!Array.isArray(tasks)) tasks = [];
 
     const inserted = [];
-
     for (const t of tasks) {
-      if (!t.title) continue;
+      const title = (t.title || "").trim();
+      if (!title) continue;
 
-      const {
-        title,
-        description = "",
-        area = default_area,
-        bucket = default_bucket,
-        priority = 3,
-      } = t;
+      const desc = t.description || null;
+      const finalBucket = t.bucket || bucket;
+      const prRaw = Number.isInteger(t.priority) ? t.priority : 2;
+      const finalPriority =
+        prRaw >= 1 && prRaw <= 5 ? prRaw : 2;
+      const finalArea = t.area || area;
 
       const result = await pool.query(
         `
-          INSERT INTO tasks
-            (title, description, bucket, area, priority, status)
-          VALUES
-            ($1,$2,$3,$4,$5,'open')
-          RETURNING *;
-        `,
-        [title, description, bucket, area, priority]
+        INSERT INTO tasks
+          (title, description, status, bucket, priority, area,
+           created_at, updated_at)
+        VALUES
+          ($1,$2,'open',$3,$4,$5, NOW(), NOW())
+        RETURNING *;
+      `,
+        [title, desc, finalBucket, finalPriority, finalArea]
       );
 
-      inserted.push(result.rows[0]);
+      inserted.push(cleanTaskRow(result.rows[0]));
     }
 
-    res.status(201).json(inserted);
+    res.json({ tasks: inserted });
   } catch (err) {
-    console.error("POST /tasks/parse error", err);
-    res.status(500).json({ error: "failed_to_parse_tasks" });
+    console.error("POST /brain-dump error:", err);
+    res.status(500).json({ error: err.message || "brain_dump_failed" });
   }
 });
 
-// ChatGPT control panel endpoint (bottom-left widget)
-app.post("/chat", async (req, res) => {
-  try {
-    const { message, board_context } = req.body || {};
-
-    if (!message || !message.trim()) {
-      return res.status(400).json({ error: "message_required" });
-    }
-
-    const systemPrompt = `
-You are TonyOS, Tony Ellis Martinez's AI Command Board.
-You help him choose the 3 highest-leverage moves using his current tasks.
-
-When answering:
-- Be direct and practical.
-- Reference specific tasks when useful.
-- Prioritize leverage + urgency − friction.
-`;
-
-    const contextSnippet = board_context
-      ? JSON.stringify(board_context).slice(0, 4000)
-      : null;
-
-    const messages = [{ role: "system", content: systemPrompt }];
-
-    if (contextSnippet) {
-      messages.push({
-        role: "user",
-        content: `Here is the current task context JSON: ${contextSnippet}`,
-      });
-    }
-
-    messages.push({ role: "user", content: message });
-
-    const completion = await client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      messages,
-      temperature: 0.4,
-    });
-
-    const reply = completion.choices[0]?.message?.content || "";
-
-    res.json({ reply });
-  } catch (err) {
-    console.error("POST /chat error", err);
-    res.status(500).json({ error: "chat_failed" });
-  }
-});
-
-// ==== START SERVER ====
-
+// ---------- START SERVER ----------
 const PORT = process.env.PORT || 5000;
 
 (async () => {
@@ -362,4 +326,3 @@ const PORT = process.env.PORT || 5000;
     process.exit(1);
   }
 })();
-
