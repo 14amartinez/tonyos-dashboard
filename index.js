@@ -354,15 +354,21 @@ app.post("/brain-dump", async (req, res) => {
 });
 
 // ---- START SERVER ----
-
 const PORT = process.env.PORT || 5000;
+const PROD = process.env.RENDER === "true";
 
 (async () => {
   try {
     await initDb();
+
     app.listen(PORT, () => {
-      console.log(`✅ TonyOS backend running on http://localhost:${PORT}`);
+      if (PROD) {
+        console.log(`✅ TonyOS backend running in the cloud on port ${PORT}`);
+      } else {
+        console.log(`✅ TonyOS backend running locally at http://localhost:${PORT}`);
+      }
     });
+
   } catch (err) {
     console.error("Failed to init TonyOS backend", err);
     process.exit(1);
