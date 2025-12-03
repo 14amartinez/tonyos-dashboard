@@ -1,140 +1,134 @@
+// index.js – TonyOS AI Command Backend
+
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { OpenAI } = require("openai");
 const { Pool } = require("pg");
 
+// ==== BASIC SERVER SETUP ====
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// OpenAI client
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ---- POSTGRES SETUP ----
+// ==== POSTGRES SETUP ====
+
+// Render sets DATABASE_URL and we set RENDER=true in env.
+// Locally you can use your own DATABASE_URL or fall back to localhost.
+const isRender = !!process.env.RENDER;
 
 const pool = new Pool({
   connectionString:
     process.env.DATABASE_URL ||
     "postgresql://tonymartinez@localhost:5432/tonyos",
+  ssl: isRender
+    ? {
+        rejectUnauthorized: false, // required by Render managed Postgres
+      }
+    : undefined,
 });
 
+// Initialize DB schema
 async function initDb() {
   const ddl = `
-  CREATE TABLE IF NOT EXISTS businesses (
-    id          SERIAL PRIMARY KEY,
-    name        TEXT NOT NULL,
-    type        TEXT,
-    is_active   BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  );
-
-  CREATE TABLE IF NOT EXISTS projects (
-    id          SERIAL PRIMARY KEY,
-    business_id INT REFERENCES businesses(id) ON DELETE SET NULL,
-    name        TEXT NOT NULL,
-    description TEXT,
-    status      TEXT NOT NULL DEFAULT 'open',
-    start_date  DATE,
-    end_date    DATE,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  );
-
-  CREATE TABLE IF NOT EXISTS tasks (
-    id                SERIAL PRIMARY KEY,
-    business_id       INT REFERENCES businesses(id) ON DELETE SET NULL,
-    project_id        INT REFERENCES projects(id) ON DELETE SET NULL,
-    title             TEXT NOT NULL,
-    description       TEXT,
-    status            TEXT NOT NULL DEFAULT 'open',
-    priority          INT  NOT NULL DEFAULT 3,
-    leverage_score    INT  NOT NULL DEFAULT 3,
-    risk_score        INT  NOT NULL DEFAULT 2,
-    friction_score    INT  NOT NULL DEFAULT 2,
-    due_date          TIMESTAMPTZ,
-    estimated_minutes INT,
-    bucket            TEXT,
-    area              TEXT,
-    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  );
+    CREATE TABLE IF NOT EXISTS tasks (
+      id               SERIAL PRIMARY KEY,
+      business_id      INTEGER,
+      project_id       INTEGER,
+      title            TEXT NOT NULL,
+      description      TEXT,
+      status           TEXT NOT NULL DEFAULT 'open',       -- open | doing | scheduled | done
+      priority         INTEGER NOT NULL DEFAULT 3,         -- 1 = highest
+      leverage_score   INTEGER DEFAULT 1,
+      risk_score       INTEGER DEFAULT 1,
+      friction_score   INTEGER DEFAULT 1,
+      due_date         TIMESTAMPTZ,
+      estimated_minutes INTEGER,
+      bucket           TEXT NOT NULL DEFAULT 'today',      -- today | this_week | later | backlog
+      area             TEXT,                               -- e.g. 'TM Weddings', 'Personal'
+      created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+      assigned_person_id INTEGER
+    );
   `;
 
   await pool.query(ddl);
   console.log("✅ Postgres initialized (TonyOS schema ready)");
 }
 
-// ---- HELPERS ----
-
-function normalizeBucket(bucket) {
-  if (!bucket) return "later";
-  const v = bucket.toLowerCase();
-  if (v === "today") return "today";
-  if (v === "this_week" || v === "this week") return "this_week";
-  return "later";
+// Small helper to keep updated_at correct
+async function touchTask(id) {
+  await pool.query(
+    "UPDATE tasks SET updated_at = now() WHERE id = $1",
+    [id]
+  );
 }
 
-function safeInt(v, fallback) {
-  const n = parseInt(v, 10);
-  return Number.isNaN(n) ? fallback : n;
-}
+// ==== ROUTES ====
 
-// ---- ROUTES: TASKS ----
-
-// Get all tasks
-app.get("/tasks", async (_req, res) => {
+// Health check
+app.get("/health", async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      "SELECT * FROM tasks ORDER BY created_at ASC"
-    );
-    res.json(rows);
+    await pool.query("SELECT 1");
+    res.json({ ok: true });
   } catch (err) {
-    console.error("Error in GET /tasks", err);
-    res.status(500).json({ error: "Failed to load tasks" });
+    console.error("Health check failed", err);
+    res.status(500).json({ ok: false, error: "db_error" });
   }
 });
 
-// Create task
+// Get all tasks (your dashboard groups them client-side)
+app.get("/tasks", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM tasks ORDER BY created_at ASC"
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("GET /tasks error", err);
+    res.status(500).json({ error: "failed_to_fetch_tasks" });
+  }
+});
+
+// Create a single task (Quick Add form)
 app.post("/tasks", async (req, res) => {
   try {
     const {
       title,
-      description = null,
-      status = "open",
+      description = "",
+      area = null,
+      bucket = "today",
       priority = 3,
-      leverage_score = 3,
-      risk_score = 2,
-      friction_score = 2,
+      leverage_score = 1,
+      risk_score = 1,
+      friction_score = 1,
       due_date = null,
       estimated_minutes = null,
-      bucket = "later",
-      area = null,
+      status = "open",
       business_id = null,
       project_id = null,
+      assigned_person_id = null,
     } = req.body || {};
 
     if (!title || !title.trim()) {
-      return res.status(400).json({ error: "Title is required" });
+      return res.status(400).json({ error: "title_required" });
     }
 
-    const normBucket = normalizeBucket(bucket);
-
-    const { rows } = await pool.query(
+    const result = await pool.query(
       `
-      INSERT INTO tasks (
-        business_id, project_id, title, description, status,
-        priority, leverage_score, risk_score, friction_score,
-        due_date, estimated_minutes, bucket, area
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,
-        $6,$7,$8,$9,
-        $10,$11,$12,$13
-      )
-      RETURNING *;
+        INSERT INTO tasks
+          (business_id, project_id, title, description,
+           status, priority, leverage_score, risk_score, friction_score,
+           due_date, estimated_minutes, bucket, area)
+        VALUES
+          ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        RETURNING *;
       `,
       [
         business_id,
@@ -142,235 +136,230 @@ app.post("/tasks", async (req, res) => {
         title.trim(),
         description,
         status,
-        safeInt(priority, 3),
-        safeInt(leverage_score, 3),
-        safeInt(risk_score, 2),
-        safeInt(friction_score, 2),
+        priority,
+        leverage_score,
+        risk_score,
+        friction_score,
         due_date,
         estimated_minutes,
-        normBucket,
+        bucket,
         area,
       ]
     );
 
-    res.status(201).json(rows[0]);
+    res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error("Error in POST /tasks", err);
-    res.status(500).json({ error: "Failed to create task" });
+    console.error("POST /tasks error", err);
+    res.status(500).json({ error: "failed_to_create_task" });
   }
 });
 
-// Mark task complete
-app.patch("/tasks/:id/complete", async (req, res) => {
+// Update a task (status, bucket, etc.)
+app.patch("/tasks/:id", async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) return res.status(400).json({ error: "Bad id" });
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: "invalid_id" });
 
-    const { rows } = await pool.query(
-      `
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    const allowed = [
+      "title",
+      "description",
+      "status",
+      "priority",
+      "leverage_score",
+      "risk_score",
+      "friction_score",
+      "due_date",
+      "estimated_minutes",
+      "bucket",
+      "area",
+      "business_id",
+      "project_id",
+      "assigned_person_id",
+    ];
+
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+        fields.push(`${key} = $${idx}`);
+        values.push(req.body[key]);
+        idx++;
+      }
+    }
+
+    if (!fields.length) {
+      return res.status(400).json({ error: "no_fields_to_update" });
+    }
+
+    values.push(id);
+    const sql = `
       UPDATE tasks
-         SET status = 'done',
-             updated_at = NOW()
-       WHERE id = $1
-       RETURNING *;
-      `,
-      [id]
-    );
+      SET ${fields.join(", ")}, updated_at = now()
+      WHERE id = $${idx}
+      RETURNING *;
+    `;
 
-    if (!rows.length) return res.status(404).json({ error: "Task not found" });
-    res.json(rows[0]);
-  } catch (err) {
-    console.error("Error in PATCH /tasks/:id/complete", err);
-    res.status(500).json({ error: "Failed to complete task" });
-  }
-});
+    const result = await pool.query(sql, values);
 
-// Delete task
-app.delete("/tasks/:id", async (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    if (Number.isNaN(id)) return res.status(400).json({ error: "Bad id" });
-
-    const { rowCount } = await pool.query("DELETE FROM tasks WHERE id = $1", [
-      id,
-    ]);
-    if (!rowCount) return res.status(404).json({ error: "Task not found" });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Error in DELETE /tasks/:id", err);
-    res.status(500).json({ error: "Failed to delete task" });
-  }
-});
-
-// ---- ROUTE: CHAT ----
-
-app.post("/chat", async (req, res) => {
-  try {
-    const { prompt } = req.body || {};
-    if (!prompt || !prompt.trim()) {
-      return res.status(400).json({ error: "Prompt is required" });
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "task_not_found" });
     }
 
-    const { rows: tasks } = await pool.query(
-      "SELECT id, title, status, priority, bucket, area, due_date FROM tasks ORDER BY created_at ASC LIMIT 100;"
-    );
-
-    const taskSnapshot = JSON.stringify(tasks);
-
-    const response = await client.responses.create({
-      model: "gpt-4.1-mini",
-      input: [
-        {
-          role: "system",
-          content:
-            "You are TonyOS, an AI COO for Tony Ellis Martinez. " +
-            "You see a JSON snapshot of his current tasks. " +
-            "Respond briefly and bluntly with what he should do next and why. " +
-            "Prioritize high-leverage, time-sensitive moves. No fluff.",
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text:
-                "Here is the current task snapshot:\n" +
-                taskSnapshot +
-                "\n\nUser question:\n" +
-                prompt,
-            },
-          ],
-        },
-      ],
-    });
-
-    const msg =
-      response.output?.[0]?.content?.[0]?.text || "No response from model.";
-    res.json({ response: msg });
+    res.json(result.rows[0]);
   } catch (err) {
-    console.error("Error in POST /chat", err);
-    res.status(500).json({ error: "Chat failure" });
+    console.error("PATCH /tasks/:id error", err);
+    res.status(500).json({ error: "failed_to_update_task" });
   }
 });
 
-// ---- ROUTE: BRAIN DUMP → TASKS ----
-
-app.post("/brain-dump", async (req, res) => {
+// Brain-dump → parse → create tasks (used by the “Parse & Create Tasks” box)
+app.post("/tasks/parse", async (req, res) => {
   try {
-    const { text, default_bucket = "today", default_area = null } = req.body || {};
+    const {
+      text,
+      default_bucket = "today",
+      default_area = null,
+    } = req.body || {};
+
     if (!text || !text.trim()) {
-      return res.status(400).json({ error: "Text is required" });
+      return res.status(400).json({ error: "text_required" });
     }
 
-    const systemPrompt =
-      "You are TonyOS, an AI COO. Parse the user's messy brain dump into a list of execution-ready tasks. " +
-      "Return STRICT JSON with this structure and nothing else:\n" +
-      `{"tasks":[{"title":"...","description":"...","priority":1,"bucket":"today|this_week|later","area":"..."}, ...]}\n` +
-      "If something is vague, still create a concrete next action.\n" +
-      "Default bucket if not obvious: " +
-      default_bucket +
-      ". Default area if not obvious: " +
-      (default_area || "General") +
-      ".";
+    const prompt = `
+You are TonyOS, Tony's execution engine.
 
-    const response = await client.responses.create({
-      model: "gpt-4.1-mini",
-      input: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: text,
-            },
-          ],
-        },
+User is brain-dumping tasks. Read the text and output a JSON array.
+Each item MUST have: title (string), description (string), bucket (today|this_week|later|backlog), area (string or null), priority (1–3 integer).
+
+If bucket or area are unclear, default bucket = "${default_bucket}", area = ${
+      default_area ? `"${default_area}"` : "null"
+    }.
+
+ONLY output valid JSON. No comments, no extra text.
+Brain dump:
+${text}
+`;
+
+    const completion = await client.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You convert brain dumps into task JSON." },
+        { role: "user", content: prompt },
       ],
+      temperature: 0.2,
     });
 
-    const raw =
-      response.output?.[0]?.content?.[0]?.text ||
-      '{"tasks":[]}';
-
-    let parsed;
+    const raw = completion.choices[0]?.message?.content || "[]";
+    let tasks;
     try {
-      parsed = JSON.parse(raw);
-    } catch {
-      console.warn("Brain dump JSON parse failed, raw:", raw);
-      return res
-        .status(500)
-        .json({ error: "Model returned invalid JSON", raw });
+      tasks = JSON.parse(raw);
+    } catch (e) {
+      console.error("Failed to parse OpenAI JSON", raw);
+      return res.status(500).json({ error: "ai_parse_failed" });
     }
 
-    const tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
+    if (!Array.isArray(tasks) || !tasks.length) {
+      return res.status(400).json({ error: "no_tasks_found" });
+    }
+
     const inserted = [];
 
     for (const t of tasks) {
-      const title = (t.title || "").trim();
-      if (!title) continue;
+      if (!t.title) continue;
 
-      const description = t.description || null;
-      const priority = safeInt(t.priority, 3);
-      const bucket = normalizeBucket(t.bucket || default_bucket);
-      const area = t.area || default_area || null;
+      const {
+        title,
+        description = "",
+        area = default_area,
+        bucket = default_bucket,
+        priority = 3,
+      } = t;
 
-      const { rows } = await pool.query(
+      const result = await pool.query(
         `
-        INSERT INTO tasks (
-          title, description, status,
-          priority, leverage_score, risk_score, friction_score,
-          bucket, area
-        )
-        VALUES (
-          $1,$2,'open',
-          $3,$4,$5,$6,
-          $7,$8
-        )
-        RETURNING *;
+          INSERT INTO tasks
+            (title, description, bucket, area, priority, status)
+          VALUES
+            ($1,$2,$3,$4,$5,'open')
+          RETURNING *;
         `,
-        [
-          title,
-          description,
-          priority,
-          // simple leverage/risk/friction defaults derived from priority
-          6 - priority,
-          priority >= 4 ? 4 : 2,
-          2,
-          bucket,
-          area,
-        ]
+        [title, description, bucket, area, priority]
       );
 
-      inserted.push(rows[0]);
+      inserted.push(result.rows[0]);
     }
 
-    res.json({ tasks: inserted });
+    res.status(201).json(inserted);
   } catch (err) {
-    console.error("Error in POST /brain-dump", err);
-    res.status(500).json({ error: "Brain dump failure" });
+    console.error("POST /tasks/parse error", err);
+    res.status(500).json({ error: "failed_to_parse_tasks" });
   }
 });
 
-// ---- START SERVER ----
+// ChatGPT control panel endpoint (bottom-left widget)
+app.post("/chat", async (req, res) => {
+  try {
+    const { message, board_context } = req.body || {};
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "message_required" });
+    }
+
+    const systemPrompt = `
+You are TonyOS, Tony Ellis Martinez's AI Command Board.
+You help him choose the 3 highest-leverage moves using his current tasks.
+
+When answering:
+- Be direct and practical.
+- Reference specific tasks when useful.
+- Prioritize leverage + urgency − friction.
+`;
+
+    const contextSnippet = board_context
+      ? JSON.stringify(board_context).slice(0, 4000)
+      : null;
+
+    const messages = [{ role: "system", content: systemPrompt }];
+
+    if (contextSnippet) {
+      messages.push({
+        role: "user",
+        content: `Here is the current task context JSON: ${contextSnippet}`,
+      });
+    }
+
+    messages.push({ role: "user", content: message });
+
+    const completion = await client.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      messages,
+      temperature: 0.4,
+    });
+
+    const reply = completion.choices[0]?.message?.content || "";
+
+    res.json({ reply });
+  } catch (err) {
+    console.error("POST /chat error", err);
+    res.status(500).json({ error: "chat_failed" });
+  }
+});
+
+// ==== START SERVER ====
+
 const PORT = process.env.PORT || 5000;
-const PROD = process.env.RENDER === "true";
 
 (async () => {
   try {
     await initDb();
-
     app.listen(PORT, () => {
-      if (PROD) {
-        console.log(`✅ TonyOS backend running in the cloud on port ${PORT}`);
-      } else {
-        console.log(`✅ TonyOS backend running locally at http://localhost:${PORT}`);
-      }
+      console.log(`✅ TonyOS backend running on http://localhost:${PORT}`);
     });
-
   } catch (err) {
     console.error("Failed to init TonyOS backend", err);
     process.exit(1);
   }
 })();
+
