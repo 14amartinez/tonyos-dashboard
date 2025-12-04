@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>TonyOS – AI Command Board</title>
+  <title>TonyOS – Command Board</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     :root {
@@ -18,1550 +18,1148 @@
       --critical: #f97373;
       --high: #fbbf24;
       --text: #e5f0ff;
-      --text-soft: #94a3b8;
-      --chip-bg: rgba(15, 23, 42, 0.9);
+      --text-soft: #9ca3af;
+      --muted: #6b7280;
       --radius-lg: 18px;
-      --radius-md: 999px;
-      --shadow-soft: 0 20px 45px rgba(15, 23, 42, 0.8);
-    }
-
-    /* LIGHT MODE OVERRIDES – soft blue Tesla vibes */
-    body.light {
-      --bg: #e8f1fb;
-      --bg-elevated: #f3f7ff;
-      --bg-card: #ffffff;
-      --bg-card-soft: #edf3ff;
-      --border-subtle: rgba(148, 163, 184, 0.4);
-      --accent: #0ea5e9;
-      --accent-soft: rgba(14, 165, 233, 0.06);
-      --accent-strong: #0f9cf5;
-      --critical: #ef4444;
-      --high: #eab308;
-      --text: #0f172a;
-      --text-soft: #6b7280;
-      --chip-bg: rgba(255, 255, 255, 0.9);
-      --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.12);
-      color-scheme: light;
+      --radius-md: 12px;
+      --shadow-soft: 0 24px 60px rgba(15, 23, 42, 0.75);
+      --shadow-tiny: 0 0 0 1px rgba(148, 163, 184, 0.2);
     }
 
     * {
       box-sizing: border-box;
     }
 
-    html,
-    body {
+    html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      width: 100%;
-      overflow: hidden;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-        "Inter", sans-serif;
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #0b1220, #020617 55%, #020617);
       color: var(--text);
-      background: radial-gradient(circle at top left, #0b1120 0, #020617 45%, #000 100%);
-    }
-
-    /* Light mode background */
-    body.light {
-      background: radial-gradient(circle at top left, #f5f7ff 0, #e6f0ff 45%, #dde7f6 100%);
+      -webkit-font-smoothing: antialiased;
     }
 
     body {
+      min-height: 100vh;
       display: flex;
-      justify-content: center;
       align-items: stretch;
+      justify-content: center;
+      padding: 16px;
     }
 
-    .shell {
+    .app-shell {
       width: 100%;
-      max-width: 1440px;
+      max-width: 1320px;
       height: 100%;
-      padding: 20px 24px 24px;
+      max-height: 840px;
+      background: radial-gradient(circle at top left, #020617, #000000 60%);
+      border-radius: 26px;
+      padding: 18px 18px 18px;
+      box-shadow:
+        0 0 0 1px rgba(148, 163, 184, 0.3),
+        0 40px 120px rgba(15, 23, 42, 0.9);
       display: flex;
       flex-direction: column;
-      gap: 18px;
-      color-scheme: dark;
+      overflow: hidden;
     }
 
-    body.light .shell {
-      color-scheme: light;
-    }
+    /* TOP BAR */
 
-    /* HEADER ROW */
-
-    .top-row {
+    .top-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
+      padding: 8px 4px 16px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
     }
 
-    .board-title {
-      font-size: 22px;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      background: conic-gradient(
+        from 200deg,
+        #38bdf8,
+        #0ea5e9,
+        #22c55e,
+        #38bdf8
+      );
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.7),
+        0 0 40px rgba(56, 189, 248, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #020617;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title {
+      font-size: 16px;
       font-weight: 600;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #e5f0ff;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .top-actions {
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
-    .pill-live {
+    .pill {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.4);
       font-size: 11px;
-      padding: 4px 9px;
-      border-radius: var(--radius-md);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-      background: radial-gradient(circle at top left, #16a34a, #052e16);
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: #bbf7d0;
-      display: inline-flex;
+      color: var(--text-soft);
+      display: flex;
       align-items: center;
-      gap: 5px;
-    }
-
-    body.light .pill-live {
-      background: radial-gradient(circle at top left, #22c55e, #e7f9ec);
-      color: #064e3b;
-      border-color: rgba(34, 197, 94, 0.5);
+      gap: 6px;
+      white-space: nowrap;
     }
 
     .pill-dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 999px;
-      background: #bbf7d0;
-      box-shadow: 0 0 10px #22c55e;
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
     }
 
-    .board-subtitle {
+    .pill-label {
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-weight: 600;
+      color: #e5f0ff;
+    }
+
+    .pill-value {
+      font-weight: 500;
+      color: var(--text-soft);
+    }
+
+    .primary-chip {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(56,189,248,0.6);
+      background: radial-gradient(circle at top left, rgba(56,189,248,0.18), rgba(15,23,42,0.9));
+      color: #e0f2fe;
       font-size: 12px;
-      color: var(--text-soft);
-    }
-
-    .system-indicator {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 4px;
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .system-row {
       display: flex;
       align-items: center;
       gap: 8px;
+      box-shadow: 0 0 40px rgba(56,189,248,0.45);
     }
 
-    .pill-system,
-    .pill-mode {
-      font-size: 11px;
-      padding: 4px 10px;
-      border-radius: var(--radius-md);
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.8);
-      cursor: default;
-    }
-
-    .pill-mode {
-      cursor: pointer;
-    }
-
-    body.light .pill-system,
-    body.light .pill-mode {
-      background: rgba(255, 255, 255, 0.9);
-      border-color: rgba(148, 163, 184, 0.6);
-    }
-
-    /* METRIC STRIP */
-
-    .metric-strip {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .metric-card {
-      background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border-subtle);
-      padding: 14px 16px;
-      box-shadow: var(--shadow-soft);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      min-height: 74px;
-    }
-
-    body.light .metric-card {
-      background: radial-gradient(circle at top, #ffffff 0, #f5f7ff 40%, #e8f1ff 100%);
-    }
-
-    .metric-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--text-soft);
-      margin-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .metric-value {
-      font-size: 22px;
+    .primary-chip span:first-child {
       font-weight: 600;
-    }
-
-    .metric-sub {
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       font-size: 11px;
-      color: var(--text-soft);
-      margin-top: 4px;
     }
 
-    /* MAIN GRID */
+    .primary-chip span:last-child {
+      color: #bae6fd;
+      font-weight: 500;
+    }
 
-    .main-grid {
+    /* MAIN LAYOUT */
+
+    .main-layout {
       flex: 1;
       display: grid;
-      grid-template-columns: 1.25fr 1fr;
-      gap: 14px;
-      min-height: 0;
+      grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.3fr);
+      gap: 16px;
+      padding-top: 14px;
+      overflow: hidden;
     }
 
-    @media (max-width: 1100px) {
-      .main-grid {
-        grid-template-columns: 1fr;
-        grid-template-rows: 1.3fr 1fr;
+    @media (max-width: 1024px) {
+      .app-shell {
+        max-height: none;
+        height: auto;
+      }
+
+      .main-layout {
+        grid-template-columns: minmax(0, 1fr);
+        grid-auto-rows: auto;
+        overflow-y: auto;
       }
     }
 
-    .card-panel {
-      background: radial-gradient(circle at top left, #020617 0, #020617 45%, #000 100%);
-      border-radius: var(--radius-lg);
-      border: 1px solid rgba(148, 163, 184, 0.3);
+    /* LEFT COLUMN – BOARD */
+
+    .panel {
+      background: radial-gradient(circle at top left, #020617, #020617 55%, #000000);
+      border-radius: 20px;
+      padding: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
       box-shadow: var(--shadow-soft);
-      padding: 14px 16px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
       min-height: 0;
-    }
-
-    body.light .card-panel {
-      background: radial-gradient(circle at top left, #ffffff 0, #f5f7ff 45%, #e8f1ff 100%);
-      border-color: rgba(148, 163, 184, 0.45);
     }
 
     .panel-header {
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: baseline;
-      gap: 12px;
+      gap: 10px;
     }
 
-    .panel-title {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--text-soft);
-    }
-
-    .panel-subtitle {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .panel-counter {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    /* HIGHEST LEVERAGE LIST */
-
-    .task-list-main {
-      flex: 1;
-      min-height: 0;
-      overflow: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding-right: 3px;
-    }
-
-    .task-card {
-      border-radius: 16px;
-      padding: 10px 12px;
-      background: linear-gradient(
-        135deg,
-        rgba(15, 23, 42, 0.98),
-        rgba(15, 23, 42, 0.95)
-      );
-      border: 1px solid rgba(148, 163, 184, 0.35);
+    .panel-title-wrap {
       display: flex;
       flex-direction: column;
       gap: 4px;
     }
 
-    body.light .task-card {
-      background: linear-gradient(
-        135deg,
-        #ffffff,
-        #f5f7ff
-      );
-      border-color: rgba(148, 163, 184, 0.5);
+    .panel-kicker {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+      font-weight: 600;
     }
 
-    .task-head-row {
+    .panel-title {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #f9fafb;
+    }
+
+    .panel-subtitle {
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .panel-right {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-end;
+    }
+
+    .micro-kpi {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .micro-kpi strong {
+      font-size: 16px;
+      color: #e5f0ff;
+    }
+
+    .board-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      min-height: 0;
+    }
+
+    @media (max-width: 1200px) {
+      .board-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 900px) {
+      .board-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .lane {
+      background: radial-gradient(circle at top left, #020617, #020617 60%, #020617);
+      border-radius: 16px;
+      padding: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: var(--shadow-tiny);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .lane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .lane-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #f9fafb;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .lane-title-badge {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+    }
+
+    .lane-meta {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .lane-body {
+      flex: 1;
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .empty-state {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px dashed rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.7);
+    }
+
+    /* TASK CARD */
+
+    .task-card {
+      background: radial-gradient(circle at top left, #020617, #020617 65%, #020617);
+      border-radius: 12px;
+      padding: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: default;
+      transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease;
+    }
+
+    .task-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(56, 189, 248, 0.75);
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.95),
+        0 0 20px rgba(56, 189, 248, 0.28);
+    }
+
+    .task-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
     }
 
     .task-title {
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
+      color: #f9fafb;
     }
 
-    .task-status {
+    .task-meta-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
       font-size: 11px;
+    }
+
+    .task-area {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.5);
       color: var(--text-soft);
     }
 
-    .task-row-bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 2px;
-      gap: 6px;
-    }
-
-    .tag-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-
-    .chip {
+    .task-priority {
+      padding: 2px 7px;
+      border-radius: 999px;
       font-size: 10px;
-      padding: 3px 8px;
-      border-radius: var(--radius-md);
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      background: var(--chip-bg);
       text-transform: uppercase;
       letter-spacing: 0.12em;
-      white-space: nowrap;
-      color: var(--text-soft);
-    }
-
-    .chip-pill {
-      border-color: rgba(148, 163, 184, 0.55);
-      background: rgba(15, 23, 42, 0.9);
-    }
-
-    body.light .chip-pill {
-      background: rgba(255, 255, 255, 0.95);
-      border-color: rgba(148, 163, 184, 0.7);
-    }
-
-    .chip-critical {
-      border-color: rgba(248, 113, 113, 0.8);
-      color: #fecaca;
-      background: rgba(127, 29, 29, 0.6);
-    }
-
-    body.light .chip-critical {
-      background: #fef2f2;
-      color: #b91c1c;
-    }
-
-    .chip-high {
-      border-color: rgba(251, 191, 36, 0.85);
-      color: #facc15;
-      background: rgba(113, 63, 18, 0.7);
-    }
-
-    body.light .chip-high {
-      background: #fffbeb;
-      color: #b45309;
-    }
-
-    .chip-today {
-      border-color: rgba(56, 189, 248, 0.9);
-      color: #e0f2fe;
-      background: rgba(15, 23, 42, 0.95);
-    }
-
-    body.light .chip-today {
-      background: #e0f2fe;
-      color: #0369a1;
-    }
-
-    .due-text {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    /* ACTION ICONS (hover) */
-
-    .task-actions,
-    .pipe-actions {
-      display: flex;
-      gap: 4px;
-      opacity: 0;
-      transition: opacity 0.12s ease;
-    }
-
-    .task-card:hover .task-actions,
-    .pipe-task:hover .pipe-actions {
-      opacity: 1;
-    }
-
-    .btn-icon {
-      border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.6);
-      background: rgba(15, 23, 42, 0.95);
-      font-size: 10px;
-      padding: 2px 7px;
-      cursor: pointer;
-      line-height: 1.2;
-      color: var(--text-soft);
     }
 
-    body.light .btn-icon {
-      background: rgba(255, 255, 255, 0.95);
+    .task-priority[data-level="1"] {
+      border-color: rgba(248, 113, 113, 0.9);
+      color: #fecaca;
+      box-shadow: 0 0 12px rgba(248, 113, 113, 0.7);
     }
 
-    .btn-icon.done {
-      border-color: rgba(34, 197, 94, 0.8);
+    .task-priority[data-level="2"] {
+      border-color: rgba(251, 191, 36, 0.9);
+      color: #fef3c7;
     }
 
-    .btn-icon.delete {
-      border-color: rgba(248, 113, 113, 0.8);
-    }
-
-    .btn-icon:hover.done {
+    .task-priority[data-level="3"] {
+      border-color: rgba(52, 211, 153, 0.9);
       color: #bbf7d0;
     }
 
-    .btn-icon:hover.delete {
-      color: #fecaca;
-    }
-
-    /* PIPELINE */
-
-    .pipeline-grid {
-      flex: 1;
-      min-height: 0;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 8px;
-    }
-
-    .pipeline-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .pipeline-columns {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-      min-height: 0;
-    }
-
-    .pipe-column {
-      background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
-      border-radius: 14px;
-      border: 1px dashed rgba(148, 163, 184, 0.45);
-      padding: 8px 9px 6px;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    body.light .pipe-column {
-      background: radial-gradient(circle at top, #ffffff 0, #f5f7ff 40%, #e8f1ff 100%);
-    }
-
-    .pipe-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--text-soft);
-    }
-
-    .pipe-count {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .pipe-scroller {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      padding-right: 2px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .pipe-task {
-      font-size: 11px;
-      padding: 7px 8px;
-      border-radius: 10px;
-      background: rgba(15, 23, 42, 0.98);
-      border: 1px solid rgba(148, 163, 184, 0.45);
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    body.light .pipe-task {
-      background: #ffffff;
-      border-color: rgba(148, 163, 184, 0.6);
-    }
-
-    .pipe-top-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .pipe-title {
-      font-size: 11px;
-      font-weight: 500;
-    }
-
-    .pipe-meta {
+    .task-status-pill {
+      padding: 2px 7px;
+      border-radius: 999px;
       font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #e5e7eb;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+    }
+
+    .task-status-pill[data-status="doing"] {
+      border-color: rgba(56, 189, 248, 0.9);
+      color: #bae6fd;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+    }
+
+    .task-status-pill[data-status="done"] {
+      border-color: rgba(52, 211, 153, 0.9);
+      color: #bbf7d0;
+      text-decoration: line-through;
+    }
+
+    .task-body {
+      font-size: 11px;
       color: var(--text-soft);
+      line-height: 1.4;
+    }
+
+    .task-footer {
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      gap: 4px;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .task-due {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .task-actions {
+      display: flex;
       flex-wrap: wrap;
+      gap: 4px;
+      justify-content: flex-end;
     }
 
-    /* BOTTOM STRIP */
-
-    .bottom-strip {
-      display: grid;
-      grid-template-columns: 1.4fr 1fr 1.7fr;
-      gap: 14px;
-      min-height: 160px;
-      max-height: 220px;
+    .btn {
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 11px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-soft);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+        transform 0.08s ease;
     }
 
-    @media (max-width: 1100px) {
-      .bottom-strip {
-        grid-template-columns: 1.4fr 1.3fr;
-        grid-auto-rows: minmax(160px, auto);
-      }
+    .btn:hover {
+      background: rgba(15, 23, 42, 1);
+      border-color: rgba(56, 189, 248, 0.9);
+      color: #e0f2fe;
+      transform: translateY(-1px);
     }
 
-    @media (max-width: 880px) {
-      .bottom-strip {
-        grid-template-columns: 1fr;
-        grid-auto-rows: minmax(160px, auto);
-      }
+    .btn-primary {
+      border-color: rgba(56, 189, 248, 0.9);
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.3), rgba(15, 23, 42, 1));
+      color: #e0f2fe;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
     }
 
-    .chat-panel,
-    .quick-panel,
-    .brain-panel {
-      background: radial-gradient(circle at top left, #020617 0, #020617 45%, #000 100%);
-      border-radius: var(--radius-lg);
+    .btn-primary:hover {
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.45), rgba(15, 23, 42, 1));
+    }
+
+    /* RIGHT COLUMN – SNAPSHOT / CONSOLE */
+
+    .side-panel {
+      background: radial-gradient(circle at top left, #020617, #000000 55%);
+      border-radius: 20px;
+      padding: 16px;
       border: 1px solid rgba(148, 163, 184, 0.35);
       box-shadow: var(--shadow-soft);
-      padding: 12px 14px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 14px;
       min-height: 0;
     }
 
-    body.light .chat-panel,
-    body.light .quick-panel,
-    body.light .brain-panel {
-      background: radial-gradient(circle at top left, #ffffff 0, #f5f7ff 45%, #e8f1ff 100%);
-      border-color: rgba(148, 163, 184, 0.45);
-    }
-
-    .chat-header,
-    .quick-header {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: var(--text-soft);
+    .side-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 10px;
     }
 
-    .chat-backend-label {
-      font-size: 10px;
+    .side-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #f9fafb;
+    }
+
+    .side-subtitle {
+      font-size: 11px;
       color: var(--text-soft);
     }
 
-    .chat-input-row {
+    .kpi-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 8px;
-      align-items: stretch;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
     }
 
-    textarea {
-      resize: none;
-      border-radius: 12px;
+    .kpi-card {
+      border-radius: 14px;
+      padding: 10px;
+      background: radial-gradient(circle at top left, #020617, #020617 55%, #020617);
       border: 1px solid rgba(148, 163, 184, 0.4);
-      background: rgba(15, 23, 42, 0.95);
-      color: var(--text);
-      font-size: 12px;
-      padding: 8px 10px;
-      min-height: 52px;
-      max-height: 100px;
-      outline: none;
+      box-shadow: var(--shadow-tiny);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
-    body.light textarea {
-      background: #ffffff;
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
     }
 
-    textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.6);
+    .kpi-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e5f0ff;
     }
 
-    .btn-primary {
-      border-radius: 999px;
-      border: none;
-      padding: 0 16px;
-      font-size: 12px;
-      font-weight: 500;
-      background: linear-gradient(
-        135deg,
-        var(--accent-strong),
-        #2563eb
-      );
-      color: white;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      min-width: 110px;
-      transition: transform 0.08s ease, box-shadow 0.08s ease,
-        filter 0.1s ease;
-      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.8);
-    }
-
-    body.light .btn-primary {
-      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.4);
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.05);
-      box-shadow: 0 14px 35px rgba(37, 99, 235, 0.95);
-    }
-
-    .btn-primary:active {
-      transform: translateY(0);
-      box-shadow: 0 9px 20px rgba(37, 99, 235, 0.7);
-    }
-
-    .chat-output {
-      flex: 1;
-      min-height: 0;
-      margin-top: 4px;
-      border-radius: 12px;
-      border: 1px dashed rgba(148, 163, 184, 0.6);
-      background: rgba(15, 23, 42, 0.9);
-      font-size: 12px;
+    .kpi-footnote {
+      font-size: 11px;
       color: var(--text-soft);
-      padding: 8px 10px;
+    }
+
+    .console {
+      flex: 1;
+      border-radius: 14px;
+      padding: 10px;
+      background: radial-gradient(circle at top left, #020617, #020617 55%, #020617);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      box-shadow: var(--shadow-tiny);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .console-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .console-log {
+      flex: 1;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(30, 64, 175, 0.8);
+      padding: 8px;
+      font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      color: #cbd5f5;
       overflow-y: auto;
     }
 
-    body.light .chat-output {
-      background: rgba(255, 255, 255, 0.9);
-    }
-
-    .quick-body {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .quick-row {
+    .console-line {
       display: flex;
       gap: 6px;
+      margin-bottom: 2px;
     }
 
-    .quick-row input,
-    .quick-row select {
-      font-size: 11px;
-      padding: 4px 7px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      background: rgba(15, 23, 42, 0.95);
-      color: var(--text);
-      flex: 1;
-      min-width: 0;
-      outline: none;
+    .console-line-prefix {
+      color: #4b5563;
+      flex-shrink: 0;
     }
 
-    body.light .quick-row input,
-    body.light .quick-row select {
-      background: #ffffff;
+    .console-line-text {
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
     }
 
-    .quick-row select {
-      flex: 0.9;
-    }
-
-    .quick-row .short {
-      flex: 0.6;
-    }
-
-    .quick-row .tiny {
-      flex: 0.4;
-    }
-
-    .quick-desc {
-      font-size: 11px;
-      width: 100%;
-      padding: 5px 9px;
-      border-radius: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      background: rgba(15, 23, 42, 0.95);
-      color: var(--text);
-      resize: none;
-      min-height: 42px;
-      max-height: 72px;
-      outline: none;
-    }
-
-    body.light .quick-desc {
-      background: #ffffff;
-    }
-
-    .quick-footer {
+    .console-input-row {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      gap: 6px;
       margin-top: 4px;
-      font-size: 10px;
-      color: var(--text-soft);
-      gap: 8px;
     }
 
-    .btn-small {
+    .console-input {
+      flex: 1;
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.7);
-      padding: 4px 10px;
-      font-size: 11px;
       background: rgba(15, 23, 42, 0.95);
+      padding: 6px 12px;
+      font-size: 12px;
       color: var(--text);
+      outline: none;
+    }
+
+    .console-input::placeholder {
+      color: var(--muted);
+    }
+
+    .console-run-btn {
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.9);
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.35), rgba(15, 23, 42, 1));
+      padding: 6px 14px;
+      font-size: 12px;
+      color: #e0f2fe;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
     }
 
-    body.light .btn-small {
-      background: #ffffff;
+    .console-run-btn:hover {
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.5), rgba(15, 23, 42, 1));
     }
 
-    .btn-small:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .muted {
+    .badge {
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
       color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .badge-hot {
+      border-color: rgba(248, 113, 113, 0.9);
+      color: #fecaca;
+      box-shadow: 0 0 10px rgba(248, 113, 113, 0.7);
+    }
+
+    .badge-calm {
+      border-color: rgba(52, 211, 153, 0.9);
+      color: #bbf7d0;
+    }
+
+    /* LOADING & ERROR */
+
+    .loading,
+    .error {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 6px 0;
+    }
+
+    .error {
+      color: #fecaca;
     }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <!-- HEADER -->
-    <div class="top-row">
-      <div>
-        <div class="board-title">
-          TonyOS – AI Command Board
-          <span class="pill-live">
-            <span class="pill-dot"></span>
-            LIVE / OPS
-          </span>
-        </div>
-        <div class="board-subtitle">
-          Tony’s next 3 highest-leverage moves, scored by leverage, urgency, risk & friction.
+  <div class="app-shell">
+    <!-- TOP BAR -->
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-icon">T</div>
+        <div class="brand-meta">
+          <div class="brand-title">TonyOS Command Board</div>
+          <div class="brand-subtitle">Turn ideas into action automatically.</div>
         </div>
       </div>
-      <div class="system-indicator">
-        <div class="system-row">
-          <span class="pill-system">Priority Engine Online</span>
-          <span id="clock"></span>
+      <div class="top-actions">
+        <div class="pill">
+          <div class="pill-dot"></div>
+          <span class="pill-label">System</span>
+          <span class="pill-value" id="board-status-label">Online</span>
         </div>
-        <div class="system-row">
-          <button id="mode-toggle" class="pill-mode">Light Mode</button>
+        <div class="pill">
+          <span class="pill-label">Focus Window</span>
+          <span class="pill-value" id="focus-window-label">Next 24–72 Hours</span>
         </div>
-        <span class="muted" style="font-size: 10px">
-          Backend: https://tonyos-dashboard.onrender.com
-        </span>
+        <div class="primary-chip">
+          <span>Today’s Target</span>
+          <span id="primary-target-label">Ship 3 highest-leverage moves.</span>
+        </div>
       </div>
-    </div>
+    </header>
 
-    <!-- METRICS -->
-    <div class="metric-strip">
-      <div class="metric-card">
-        <div class="metric-label">
-          <span>Total Tasks</span>
-          <span class="metric-sub" id="metric-total-sub">Entire AI + ops pipeline</span>
-        </div>
-        <div class="metric-value" id="metric-total">–</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">
-          <span>Active Now</span>
-          <span class="metric-sub">In progress / scheduled</span>
-        </div>
-        <div class="metric-value" id="metric-active">–</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">
-          <span>Completed</span>
-          <span class="metric-sub">Cleared from system</span>
-        </div>
-        <div class="metric-value" id="metric-done">–</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">
-          <span>Overdue</span>
-          <span class="metric-sub">No red lights</span>
-        </div>
-        <div class="metric-value" id="metric-overdue">–</div>
-      </div>
-    </div>
-
-    <!-- MAIN GRID -->
-    <div class="main-grid">
-      <!-- Highest leverage -->
-      <section class="card-panel" aria-label="Highest leverage tasks">
+    <!-- MAIN -->
+    <main class="main-layout">
+      <!-- LEFT: BOARD -->
+      <section class="panel">
         <div class="panel-header">
-          <div>
-            <div class="panel-title">Tony’s Next 3</div>
-            <div class="panel-subtitle">Ranked by TonyOS score: leverage + urgency + risk − friction.</div>
+          <div class="panel-title-wrap">
+            <div class="panel-kicker">Execution Board</div>
+            <div class="panel-title">Where should my energy go next?</div>
+            <div class="panel-subtitle">
+              Tony-only board. Hard limit: 3 highest-leverage moves in the immediate window.
+            </div>
           </div>
-          <div class="panel-counter" id="hl-counter"></div>
+          <div class="panel-right">
+            <div class="micro-kpi">
+              <span>Today queued:</span>
+              <strong id="kpi-today-count">0</strong>
+            </div>
+            <div class="micro-kpi">
+              <span>In motion:</span>
+              <strong id="kpi-doing-count">0</strong>
+            </div>
+          </div>
         </div>
-        <div class="task-list-main" id="highest-leverage-list"></div>
-      </section>
 
-      <!-- Pipeline overview -->
-      <section class="card-panel" aria-label="Pipeline overview">
-        <div class="pipeline-grid">
-          <div class="pipeline-header">
-            <div>
-              <div class="panel-title">Pipeline overview</div>
-              <div class="panel-subtitle">
-                Today · This week · Later / backlog
+        <div id="board-loading" class="loading">Loading tasks from backend…</div>
+        <div id="board-error" class="error" style="display:none;">Error loading tasks. Check server.</div>
+
+        <div class="board-grid" id="board-grid" style="display:none;">
+          <!-- Lane: Next 24–72 Hrs -->
+          <div class="lane" data-lane="today">
+            <div class="lane-header">
+              <div class="lane-title">
+                <span class="lane-title-badge"></span>
+                <span>Next 24–72 Hrs</span>
+              </div>
+              <div class="lane-meta">
+                Max <strong>3</strong> cards. No excuses.
               </div>
             </div>
-            <div class="panel-counter" id="pipeline-summary"></div>
+            <div class="lane-body" id="lane-today"></div>
           </div>
-          <div class="pipeline-columns">
-            <div class="pipe-column">
-              <div class="pipe-head">
-                <span>Today</span>
-                <span class="pipe-count" id="count-today">0</span>
-              </div>
-              <div class="pipe-scroller" id="col-today"></div>
-            </div>
-            <div class="pipe-column">
-              <div class="pipe-head">
+
+          <!-- Lane: This Week -->
+          <div class="lane" data-lane="this_week">
+            <div class="lane-header">
+              <div class="lane-title">
+                <span class="lane-title-badge"></span>
                 <span>This Week</span>
-                <span class="pipe-count" id="count-week">0</span>
               </div>
-              <div class="pipe-scroller" id="col-week"></div>
-            </div>
-            <div class="pipe-column">
-              <div class="pipe-head">
-                <span>Later / Backlog</span>
-                <span class="pipe-count" id="count-later">0</span>
+              <div class="lane-meta">
+                Pull from here when “Today” is clear.
               </div>
-              <div class="pipe-scroller" id="col-later"></div>
             </div>
+            <div class="lane-body" id="lane-this_week"></div>
           </div>
-        </div>
-      </section>
-    </div>
 
-    <!-- BOTTOM: Chat + quick add + brain dump -->
-    <div class="bottom-strip">
-      <!-- ChatGPT control -->
-      <section class="chat-panel">
-        <div class="chat-header">
-          <span>ChatGPT Control</span>
-          <span class="chat-backend-label">
-            Backend: https://tonyos-dashboard.onrender.com/chat
-          </span>
-        </div>
-        <form id="chat-form" class="chat-input-row">
-          <textarea
-            id="chat-input"
-            placeholder="Ask the board anything. Example: ‘Given the current tasks, tell me what to do first and why.’"
-          ></textarea>
-          <button type="submit" class="btn-primary" id="chat-send-btn">
-            Send to ChatGPT
-          </button>
-        </form>
-        <div class="chat-output" id="chat-output">
-          ChatGPT response will appear here.
+          <!-- Lane: Later / Backlog -->
+          <div class="lane" data-lane="later">
+            <div class="lane-header">
+              <div class="lane-title">
+                <span class="lane-title-badge"></span>
+                <span>Later & Backlog</span>
+              </div>
+              <div class="lane-meta">
+                Park long-horizon or non-critical work.
+              </div>
+            </div>
+            <div class="lane-body" id="lane-later"></div>
+          </div>
         </div>
       </section>
 
-      <!-- Quick add -->
-      <section class="quick-panel">
-        <div class="quick-header">
-          <span>Quick Add Task</span>
-          <span class="muted" style="font-size:10px;">Inject tasks directly into Postgres</span>
+      <!-- RIGHT: SNAPSHOT / CONSOLE -->
+      <aside class="side-panel">
+        <div class="side-header">
+          <div>
+            <div class="side-title">System Snapshot</div>
+            <div class="side-subtitle">Quick read on your command board health.</div>
+          </div>
+          <div class="badge badge-hot" id="load-badge">Live</div>
         </div>
-        <form id="quick-form" class="quick-body">
-          <input
-            type="text"
-            id="quick-title"
-            placeholder="e.g. Load 2025 weddings + shoots into AI dashboard"
-            required
-          />
-          <div class="quick-row">
-            <select id="quick-bucket" class="short">
-              <option value="today">Today</option>
-              <option value="this_week">This week</option>
-              <option value="later">Later</option>
-            </select>
-            <input
-              type="number"
-              id="quick-priority"
-              class="tiny"
-              min="1"
-              max="5"
-              value="2"
-              title="Priority (1 highest)"
-            />
-            <input
-              type="date"
-              id="quick-due"
-              class="short"
-              title="Due date (optional)"
-            />
-          </div>
-          <div class="quick-row">
-            <input
-              type="text"
-              id="quick-area"
-              placeholder="Area / domain (e.g. TM Weddings, Personal)"
-            />
-          </div>
-          <textarea
-            id="quick-desc"
-            class="quick-desc"
-            placeholder="Short one-liner so future-you and ChatGPT know why this matters."
-          ></textarea>
-          <div class="quick-footer">
-            <span id="quick-status" class="muted">Ready.</span>
-            <button type="submit" class="btn-small">Add Task</button>
-          </div>
-        </form>
-      </section>
 
-      <!-- Brain dump → tasks -->
-      <section class="brain-panel">
-        <div class="quick-header">
-          <span>Brain Dump → Tasks</span>
-          <span class="muted" style="font-size:10px;">TonyOS will parse & inject tasks</span>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Open Tasks</div>
+            <div class="kpi-value" id="kpi-total-open">0</div>
+            <div class="kpi-footnote" id="kpi-total-open-note">Across all buckets.</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Done (Today)</div>
+            <div class="kpi-value" id="kpi-done-today">0</div>
+            <div class="kpi-footnote" id="kpi-done-today-note">Shipped in this session.</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Immediate Load</div>
+            <div class="kpi-value" id="kpi-load-score">0</div>
+            <div class="kpi-footnote" id="kpi-load-footnote">Target: 3 or less in “Next 24–72 Hrs”.</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Focus Confidence</div>
+            <div class="kpi-value" id="kpi-focus-score">100%</div>
+            <div class="kpi-footnote">Subjective: 3 cards max = clarity.</div>
+          </div>
         </div>
-        <form id="brain-form" class="quick-body">
-          <textarea
-            id="brain-text"
-            class="quick-desc"
-            placeholder="Example: email CPA about 2024 taxes, schedule 3 TM Weddings consults, order MCC winter inventory, follow up with Cole about revisions."
-          ></textarea>
-          <div class="quick-row">
-            <select id="brain-bucket" class="short">
-              <option value="today">Default bucket: Today</option>
-              <option value="this_week">Default: This week</option>
-              <option value="later">Default: Later</option>
-            </select>
+
+        <div class="console">
+          <div class="console-label">Activity Log</div>
+          <div class="console-log" id="console-log">
+            <!-- Lines injected here -->
+          </div>
+          <div class="console-input-row">
             <input
-              type="text"
-              id="brain-area"
-              placeholder="Default area / domain (optional)"
+              id="console-input"
+              class="console-input"
+              placeholder='Quick note or command (e.g. "Mark everything not critical as backlog")'
             />
+            <button class="console-run-btn" id="console-run-btn">
+              Run
+            </button>
           </div>
-          <div class="quick-footer">
-            <span id="brain-status" class="muted">Idle.</span>
-            <button type="submit" class="btn-small">Parse & Create Tasks</button>
-          </div>
-        </form>
-      </section>
-    </div>
+        </div>
+      </aside>
+    </main>
   </div>
 
   <script>
-    const BACKEND = "https://tonyos-dashboard.onrender.com";
+    // ===== BASIC CONFIG =====
+    const API_BASE = ""; // same origin. If different: "http://localhost:3000"
+    const BOARD_ENDPOINT = API_BASE + "/tasks/board";
+    const TASK_UPDATE_ENDPOINT = (id) => API_BASE + "/tasks/" + id;
 
-    // ----- THEME TOGGLE -----
-    const modeToggle = document.getElementById("mode-toggle");
+    let doneTodayCount = 0;
 
-    function applySavedTheme() {
-      const saved = localStorage.getItem("tonyos-theme");
-      if (saved === "light") {
-        document.body.classList.add("light");
-      }
-      updateModeToggleLabel();
+    // ===== DOM HELPERS =====
+    const qs = (sel) => document.querySelector(sel);
+
+    function logLine(text) {
+      const log = qs("#console-log");
+      if (!log) return;
+      const line = document.createElement("div");
+      line.className = "console-line";
+      const prefix = document.createElement("span");
+      prefix.className = "console-line-prefix";
+      const timestamp = new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+      prefix.textContent = "[" + timestamp + "]";
+      const body = document.createElement("span");
+      body.className = "console-line-text";
+      body.textContent = text;
+      line.appendChild(prefix);
+      line.appendChild(body);
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
     }
 
-    function updateModeToggleLabel() {
-      if (document.body.classList.contains("light")) {
-        modeToggle.textContent = "Dark Mode";
-      } else {
-        modeToggle.textContent = "Light Mode";
-      }
+    function formatDueDate(due) {
+      if (!due) return "No due date";
+      const d = new Date(due);
+      if (Number.isNaN(d.getTime())) return due;
+      return d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric"
+      });
     }
 
-    modeToggle.addEventListener("click", () => {
-      document.body.classList.toggle("light");
-      const mode = document.body.classList.contains("light") ? "light" : "dark";
-      localStorage.setItem("tonyos-theme", mode);
-      updateModeToggleLabel();
-    });
+    // ===== RENDER TASK CARD =====
+    function createTaskCard(task) {
+      const card = document.createElement("article");
+      card.className = "task-card";
 
-    applySavedTheme();
+      const header = document.createElement("div");
+      header.className = "task-header";
 
-    // ----- UTILITIES -----
-    function formatDate(input) {
-      if (!input) return "No due date";
+      const titleEl = document.createElement("div");
+      titleEl.className = "task-title";
+      titleEl.textContent = task.title || "Untitled Task";
+
+      const statusPill = document.createElement("div");
+      statusPill.className = "task-status-pill";
+      statusPill.dataset.status = task.status || "todo";
+      statusPill.textContent = (task.status || "todo").toUpperCase();
+
+      header.appendChild(titleEl);
+      header.appendChild(statusPill);
+
+      const metaRow = document.createElement("div");
+      metaRow.className = "task-meta-row";
+
+      if (task.area) {
+        const area = document.createElement("span");
+        area.className = "task-area";
+        area.textContent = task.area;
+        metaRow.appendChild(area);
+      }
+
+      const priority = document.createElement("span");
+      priority.className = "task-priority";
+      priority.dataset.level = String(task.priority || 3);
+      const p = task.priority || 3;
+      const label =
+        p === 1 ? "Critical" :
+        p === 2 ? "High" :
+        "Normal";
+      priority.textContent = label;
+      metaRow.appendChild(priority);
+
+      const body = document.createElement("div");
+      body.className = "task-body";
+      body.textContent = task.description || "";
+
+      const footer = document.createElement("div");
+      footer.className = "task-footer";
+
+      const due = document.createElement("div");
+      due.className = "task-due";
+      due.textContent = "Due: " + formatDueDate(task.due_date);
+
+      const actions = document.createElement("div");
+      actions.className = "task-actions";
+
+      const btnDo = document.createElement("button");
+      btnDo.className = "btn btn-primary";
+      btnDo.textContent = "Start";
+      btnDo.addEventListener("click", () =>
+        updateTask(task.id, { status: "doing" })
+      );
+
+      const btnDone = document.createElement("button");
+      btnDone.className = "btn";
+      btnDone.textContent = "Done";
+      btnDone.addEventListener("click", () =>
+        updateTask(task.id, { status: "done" })
+      );
+
+      const btnBacklog = document.createElement("button");
+      btnBacklog.className = "btn";
+      btnBacklog.textContent = "Backlog";
+      btnBacklog.addEventListener("click", () =>
+        updateTask(task.id, { bucket: "backlog", status: "todo" })
+      );
+
+      actions.appendChild(btnDo);
+      actions.appendChild(btnDone);
+      actions.appendChild(btnBacklog);
+
+      footer.appendChild(due);
+      footer.appendChild(actions);
+
+      card.appendChild(header);
+      card.appendChild(metaRow);
+      if (task.description) card.appendChild(body);
+      card.appendChild(footer);
+
+      return card;
+    }
+
+    // ===== UPDATE BACKEND =====
+    async function updateTask(id, updates) {
       try {
-        const d = new Date(input);
-        if (Number.isNaN(d.getTime())) return "Invalid date";
-        const options = { month: "short", day: "numeric" };
-        return d.toLocaleString(undefined, options);
-      } catch {
-        return input;
-      }
-    }
-
-    function bucketLabel(bucket) {
-      if (bucket === "today") return "Today";
-      if (bucket === "this_week") return "This week";
-      return "Later";
-    }
-
-    function statusLabel(t) {
-      return t.status || "open";
-    }
-
-    function computeMetrics(tasks) {
-      const now = new Date();
-      const total = tasks.length;
-      const done = tasks.filter((t) => statusLabel(t) === "done").length;
-      const active = tasks.filter((t) => statusLabel(t) !== "done").length;
-      const overdue = tasks.filter((t) => {
-        if (!t.due_date) return false;
-        const d = new Date(t.due_date);
-        if (Number.isNaN(d.getTime())) return false;
-        return d < now && statusLabel(t) !== "done";
-      }).length;
-      return { total, done, active, overdue };
-    }
-
-    function renderMetrics(tasks) {
-      const m = computeMetrics(tasks);
-      document.getElementById("metric-total").textContent = m.total;
-      document.getElementById("metric-active").textContent = m.active;
-      document.getElementById("metric-done").textContent = m.done;
-      document.getElementById("metric-overdue").textContent = m.overdue;
-      document.getElementById("metric-total-sub").textContent =
-        "Entire AI + ops pipeline";
-    }
-
-    // TonyOS scoring on the frontend (for display + Next 3)
-    function urgencyScore(task) {
-      const { due_date, bucket } = task;
-      if (!due_date) {
-        if (bucket === "today") return 3;
-        if (bucket === "this_week") return 2;
-        return 1;
-      }
-      const now = new Date();
-      const d = new Date(due_date);
-      if (Number.isNaN(d.getTime())) return 1;
-      const diffMs = d.getTime() - now.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60);
-
-      if (diffHours < 0) return 5;
-      if (diffHours <= 24) return 4;
-      if (diffHours <= 72) return 3;
-      if (diffHours <= 24 * 7) return 2;
-      return 1;
-    }
-
-    function leverageScore(task) {
-      if (typeof task.leverage_score === "number") return task.leverage_score;
-      const p = typeof task.priority === "number" ? task.priority : 3;
-      const clamped = Math.min(Math.max(p, 1), 5);
-      return 6 - clamped;
-    }
-
-    function riskScore(task) {
-      if (typeof task.risk_score === "number") return task.risk_score;
-      const u = urgencyScore(task);
-      if (u >= 4) return 4;
-      if (u === 3) return 3;
-      return 2;
-    }
-
-    function frictionScore(task) {
-      if (typeof task.friction_score === "number") return task.friction_score;
-      const desc = (task.description || "").toLowerCase();
-      if (!desc) return 2;
-      if (
-        desc.includes("tax") ||
-        desc.includes("accounting") ||
-        desc.includes("legal")
-      )
-        return 3;
-      if (desc.includes("call") || desc.includes("email")) return 1;
-      return 2;
-    }
-
-    function tonyScore(task) {
-      const L = leverageScore(task);
-      const U = urgencyScore(task);
-      const R = riskScore(task);
-      const F = frictionScore(task);
-      return { L, U, R, F, score: L + U + R - F };
-    }
-
-    // ---- API HELPERS FOR COMPLETE / DELETE ----
-
-    async function completeTask(id) {
-      try {
-        await fetch(`${BACKEND}/tasks/${id}/complete`, {
+        logLine(">> Updating task #" + id + " " + JSON.stringify(updates));
+        const res = await fetch(TASK_UPDATE_ENDPOINT(id), {
           method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates)
         });
-        await loadTasks();
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        if (updates.status === "done") {
+          doneTodayCount += 1;
+          qs("#kpi-done-today").textContent = String(doneTodayCount);
+          qs("#kpi-done-today-note").textContent = "Since this page loaded.";
+        }
+        await loadBoard();
       } catch (err) {
-        console.error("Complete failed", err);
+        logLine("!! Error updating task: " + err.message);
+        alert("Error updating task. Check console/server.");
       }
     }
 
-    async function deleteTask(id) {
-      const ok = confirm("Delete this task from TonyOS?");
-      if (!ok) return;
-      try {
-        await fetch(`${BACKEND}/tasks/${id}`, {
-          method: "DELETE",
-        });
-        await loadTasks();
-      } catch (err) {
-        console.error("Delete failed", err);
-      }
-    }
+    // ===== LOAD & RENDER BOARD =====
+    async function loadBoard() {
+      const loading = qs("#board-loading");
+      const error = qs("#board-error");
+      const boardGrid = qs("#board-grid");
 
-    // ---- RENDER: NEXT 3 ----
+      loading.style.display = "block";
+      error.style.display = "none";
+      boardGrid.style.display = "none";
 
-    function renderHighestLeverage(tasks) {
-      const container = document.getElementById("highest-leverage-list");
-      container.innerHTML = "";
-      const openTasks = tasks.filter((t) => statusLabel(t) !== "done");
-      if (!openTasks.length) {
-        container.innerHTML =
-          '<div class="muted" style="font-size:12px;">No tasks yet – add something in Quick Add or Brain Dump.</div>';
-        document.getElementById("hl-counter").textContent = "0 surfaced";
-        return;
-      }
-
-      const ranked = [...openTasks].sort((a, b) => {
-        const sa = tonyScore(a).score;
-        const sb = tonyScore(b).score;
-        return sb - sa;
+      // clear lanes
+      ["today", "this_week", "later"].forEach((laneKey) => {
+        const laneBody = qs("#lane-" + laneKey);
+        if (laneBody) laneBody.innerHTML = "";
       });
 
-      const top = ranked.slice(0, 3);
-      document.getElementById("hl-counter").textContent =
-        `${top.length} of ${openTasks.length} surfaced`;
+      try {
+        const res = await fetch(BOARD_ENDPOINT);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
 
-      for (const t of top) {
-        const metrics = tonyScore(t);
+        loading.style.display = "none";
+        boardGrid.style.display = "grid";
 
-        const card = document.createElement("article");
-        card.className = "task-card";
-
-        const headRow = document.createElement("div");
-        headRow.className = "task-head-row";
-
-        const title = document.createElement("div");
-        title.className = "task-title";
-        title.textContent = t.title;
-        headRow.appendChild(title);
-
-        const right = document.createElement("div");
-        right.style.display = "flex";
-        right.style.alignItems = "center";
-        right.style.gap = "6px";
-
-        const status = document.createElement("div");
-        status.className = "task-status";
-        status.textContent = `Status: ${statusLabel(t)}`;
-        right.appendChild(status);
-
-        const actions = document.createElement("div");
-        actions.className = "task-actions";
-
-        const doneBtn = document.createElement("button");
-        doneBtn.className = "btn-icon done";
-        doneBtn.textContent = "✔";
-        doneBtn.title = "Mark complete";
-        doneBtn.onclick = (e) => {
-          e.stopPropagation();
-          completeTask(t.id);
+        const buckets = {
+          today: data.today || data.today || [],
+          this_week: data.this_week || data.thisWeek || [],
+          later: (data.later || []).concat(data.backlog || [])
         };
 
-        const delBtn = document.createElement("button");
-        delBtn.className = "btn-icon delete";
-        delBtn.textContent = "✕";
-        delBtn.title = "Delete task";
-        delBtn.onclick = (e) => {
-          e.stopPropagation();
-          deleteTask(t.id);
-        };
+        // enforce 3-task limit visually for today
+        const todayTasks = buckets.today.slice(0, 3);
+        const overflowCount = (buckets.today.length || 0) - todayTasks.length;
 
-        actions.appendChild(doneBtn);
-        actions.appendChild(delBtn);
-        right.appendChild(actions);
+        // Render lanes
+        let totalOpen = 0;
+        let doingCount = 0;
 
-        headRow.appendChild(right);
+        Object.entries(buckets).forEach(([key, tasks]) => {
+          const laneBody = qs("#lane-" + key);
+          if (!laneBody) return;
 
-        const bodyRow = document.createElement("div");
-        bodyRow.style.fontSize = "11px";
-        bodyRow.style.color = "var(--text-soft)";
-        bodyRow.textContent = t.description || "–";
+          if (!tasks || tasks.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "empty-state";
+            empty.textContent =
+              key === "today"
+                ? "No cards here. Pull one in from This Week or Later—don’t manufacture fake work."
+                : "Nothing parked here yet.";
+            laneBody.appendChild(empty);
+            return;
+          }
 
-        const bottomRow = document.createElement("div");
-        bottomRow.className = "task-row-bottom";
+          const list =
+            key === "today"
+              ? todayTasks
+              : tasks;
 
-        const tags = document.createElement("div");
-        tags.className = "tag-row";
-
-        const chipBucket = document.createElement("span");
-        chipBucket.className = "chip chip-pill chip-today";
-        chipBucket.textContent = bucketLabel(t.bucket || "later");
-        tags.appendChild(chipBucket);
-
-        const chipPriority = document.createElement("span");
-        chipPriority.className =
-          "chip chip-pill " +
-          (t.priority === 1
-            ? "chip-critical"
-            : t.priority === 2
-            ? "chip-high"
-            : "");
-        chipPriority.textContent = `P${t.priority ?? "–"}`;
-        tags.appendChild(chipPriority);
-
-        if (t.area) {
-          const chipArea = document.createElement("span");
-          chipArea.className = "chip chip-pill";
-          chipArea.textContent = t.area;
-          tags.appendChild(chipArea);
-        }
-
-        const chipScore = document.createElement("span");
-        chipScore.className = "chip chip-pill";
-        chipScore.textContent = `Score ${metrics.score} · L${metrics.L}/U${metrics.U}/R${metrics.R}/F${metrics.F}`;
-        tags.appendChild(chipScore);
-
-        const due = document.createElement("div");
-        due.className = "due-text";
-        due.textContent = `Due: ${formatDate(t.due_date)}`;
-
-        bottomRow.appendChild(tags);
-        bottomRow.appendChild(due);
-
-        card.appendChild(headRow);
-        card.appendChild(bodyRow);
-        card.appendChild(bottomRow);
-        container.appendChild(card);
-      }
-    }
-
-    // ---- RENDER: PIPELINE ----
-
-    function renderPipeline(tasks) {
-      const cols = {
-        today: document.getElementById("col-today"),
-        this_week: document.getElementById("col-week"),
-        later: document.getElementById("col-later"),
-      };
-      Object.values(cols).forEach((el) => (el.innerHTML = ""));
-
-      const grouped = { today: [], this_week: [], later: [] };
-      for (const t of tasks) {
-        const b = t.bucket || "later";
-        if (!grouped[b]) grouped[b] = [];
-        grouped[b].push(t);
-      }
-
-      const bucketOrder = ["today", "this_week", "later"];
-      let summary = [];
-      bucketOrder.forEach((b) => {
-        const arr = grouped[b] || [];
-        const el = cols[b];
-        if (!el) return;
-
-        arr
-          .slice()
-          .sort((a, b2) => {
-            const pa = a.priority ?? 99;
-            const pb = b2.priority ?? 99;
-            if (pa !== pb) return pa - pb;
-            const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-            const db = b2.due_date ? new Date(b2.due_date).getTime() : Infinity;
-            return da - db;
-          })
-          .forEach((t) => {
-            const wrap = document.createElement("article");
-            wrap.className = "pipe-task";
-
-            const topRow = document.createElement("div");
-            topRow.className = "pipe-top-row";
-
-            const title = document.createElement("div");
-            title.className = "pipe-title";
-            title.textContent = t.title;
-            topRow.appendChild(title);
-
-            const actions = document.createElement("div");
-            actions.className = "pipe-actions";
-
-            const doneBtn = document.createElement("button");
-            doneBtn.className = "btn-icon done";
-            doneBtn.textContent = "✔";
-            doneBtn.title = "Mark complete";
-            doneBtn.onclick = (e) => {
-              e.stopPropagation();
-              completeTask(t.id);
-            };
-
-            const delBtn = document.createElement("button");
-            delBtn.className = "btn-icon delete";
-            delBtn.textContent = "✕";
-            delBtn.title = "Delete task";
-            delBtn.onclick = (e) => {
-              e.stopPropagation();
-              deleteTask(t.id);
-            };
-
-            actions.appendChild(doneBtn);
-            actions.appendChild(delBtn);
-            topRow.appendChild(actions);
-
-            const meta = document.createElement("div");
-            meta.className = "pipe-meta";
-            meta.innerHTML = `
-              <span>P${t.priority ?? "–"} · ${t.area || "General"}</span>
-              <span>Due: ${formatDate(t.due_date)}</span>
-            `;
-
-            wrap.appendChild(topRow);
-            wrap.appendChild(meta);
-            el.appendChild(wrap);
+          list.forEach((task) => {
+            if (task.status !== "done") totalOpen += 1;
+            if (task.status === "doing") doingCount += 1;
+            laneBody.appendChild(createTaskCard(task));
           });
 
-        summary.push(`${bucketLabel(b)}: ${arr.length}`);
-        if (b === "today")
-          document.getElementById("count-today").textContent = arr.length;
-        if (b === "this_week")
-          document.getElementById("count-week").textContent = arr.length;
-        if (b === "later")
-          document.getElementById("count-later").textContent = arr.length;
+          if (key === "today" && overflowCount > 0) {
+            const warning = document.createElement("div");
+            warning.className = "empty-state";
+            warning.style.borderColor = "rgba(248,113,113,0.8)";
+            warning.style.color = "#fecaca";
+            warning.textContent =
+              "You have " +
+              overflowCount +
+              " extra tasks in this bucket. Hard rule: cap visible cards to 3.";
+            laneBody.appendChild(warning);
+          }
+        });
+
+        // KPIs
+        qs("#kpi-today-count").textContent = todayTasks.length.toString();
+        qs("#kpi-doing-count").textContent = doingCount.toString();
+        qs("#kpi-total-open").textContent = totalOpen.toString();
+
+        const loadScore = todayTasks.length;
+        qs("#kpi-load-score").textContent = String(loadScore);
+        qs("#kpi-load-footnote").textContent =
+          loadScore <= 3
+            ? "You're within the load range. Ship these before pulling more in."
+            : "You’re over capacity. Trim this lane down.";
+
+        // status badge
+        const badge = qs("#load-badge");
+        if (loadScore > 3) {
+          badge.textContent = "Overloaded";
+          badge.classList.remove("badge-calm");
+          badge.classList.add("badge-hot");
+        } else {
+          badge.textContent = "Live";
+          badge.classList.remove("badge-hot");
+          badge.classList.add("badge-calm");
+        }
+
+        logLine("OK Loaded board: " + totalOpen + " open, " + doingCount + " in motion.");
+      } catch (err) {
+        loading.style.display = "none";
+        error.style.display = "block";
+        logLine("!! Error loading board: " + err.message);
+      }
+    }
+
+    // ===== CONSOLE INPUT (LOCAL ONLY FOR NOW) =====
+    function setupConsoleInput() {
+      const input = qs("#console-input");
+      const btn = qs("#console-run-btn");
+      if (!input || !btn) return;
+
+      function run() {
+        const value = input.value.trim();
+        if (!value) return;
+        logLine(">> " + value);
+        // Hook: This is where you'd POST to an /ai/command endpoint later.
+        input.value = "";
+      }
+
+      btn.addEventListener("click", run);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          run();
+        }
       });
-
-      document.getElementById("pipeline-summary").textContent =
-        summary.join(" · ");
     }
 
-    async function loadTasks() {
-      try {
-        const res = await fetch(`${BACKEND}/tasks`);
-        const data = await res.json();
-        const tasks = Array.isArray(data) ? data : data.tasks || [];
-        renderMetrics(tasks);
-        renderHighestLeverage(tasks);
-        renderPipeline(tasks);
-      } catch (err) {
-        console.error("Error loading tasks", err);
-        document.getElementById("highest-leverage-list").innerHTML =
-          '<div class="muted" style="font-size:12px;">Error talking to backend. Check Node server.</div>';
-      }
-    }
-
-    // Chat handling
-    async function handleChatSubmit(e) {
-      e.preventDefault();
-      const input = document.getElementById("chat-input");
-      const output = document.getElementById("chat-output");
-      const btn = document.getElementById("chat-send-btn");
-      const prompt = input.value.trim();
-      if (!prompt) return;
-
-      btn.disabled = true;
-      btn.textContent = "Thinking...";
-      output.textContent = "Waiting for ChatGPT response...";
-
-      try {
-        const res = await fetch(`${BACKEND}/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
-        const data = await res.json();
-        output.textContent = data.response || JSON.stringify(data, null, 2);
-      } catch (err) {
-        console.error(err);
-        output.textContent =
-          "Error talking to backend. Make sure the Node server is running.";
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Send to ChatGPT";
-      }
-    }
-
-    // Quick add
-    async function handleQuickSubmit(e) {
-      e.preventDefault();
-      const title = document.getElementById("quick-title").value.trim();
-      const bucket = document.getElementById("quick-bucket").value;
-      const priority = parseInt(
-        document.getElementById("quick-priority").value || "3",
-        10
-      );
-      const due = document.getElementById("quick-due").value || null;
-      const area = document.getElementById("quick-area").value.trim() || null;
-      const description =
-        document.getElementById("quick-desc").value.trim() || null;
-      const statusEl = document.getElementById("quick-status");
-
-      if (!title) {
-        statusEl.textContent = "Title is required.";
-        return;
-      }
-
-      statusEl.textContent = "Saving...";
-      try {
-        const res = await fetch(`${BACKEND}/tasks`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title,
-            bucket,
-            priority,
-            due_date: due,
-            area,
-            description,
-          }),
-        });
-        if (!res.ok) throw new Error("Bad response");
-        statusEl.textContent = "Added. Refreshing...";
-        document.getElementById("quick-form").reset();
-        setTimeout(loadTasks, 250);
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent =
-          "Error adding task. Check backend /tasks POST endpoint.";
-      }
-    }
-
-    // Brain dump → tasks
-    async function handleBrainSubmit(e) {
-      e.preventDefault();
-      const text = document.getElementById("brain-text").value.trim();
-      const bucket = document.getElementById("brain-bucket").value;
-      const area = document.getElementById("brain-area").value.trim() || null;
-      const statusEl = document.getElementById("brain-status");
-
-      if (!text) {
-        statusEl.textContent = "Type your brain dump first.";
-        return;
-      }
-
-      statusEl.textContent = "Parsing and creating tasks...";
-      try {
-        const res = await fetch(`${BACKEND}/brain-dump`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text,
-            default_bucket: bucket,
-            default_area: area,
-          }),
-        });
-
-        if (!res.ok) throw new Error("Bad response");
-        const data = await res.json();
-        const count = Array.isArray(data.tasks) ? data.tasks.length : 0;
-
-        statusEl.textContent =
-          count === 0
-            ? "No clear tasks found."
-            : `Added ${count} task${count === 1 ? "" : "s"} to the board.`;
-        document.getElementById("brain-form").reset();
-        setTimeout(loadTasks, 300);
-      } catch (err) {
-        console.error("Brain dump error:", err);
-        statusEl.textContent = "Error: check backend /brain-dump.";
-      }
-    }
-
-    function startClock() {
-      const el = document.getElementById("clock");
-      function tick() {
-        const now = new Date();
-        el.textContent = now.toLocaleString(undefined, {
-          weekday: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      }
-      tick();
-      setInterval(tick, 60000);
-    }
-
-    document
-      .getElementById("chat-form")
-      .addEventListener("submit", handleChatSubmit);
-    document
-      .getElementById("quick-form")
-      .addEventListener("submit", handleQuickSubmit);
-    document
-      .getElementById("brain-form")
-      .addEventListener("submit", handleBrainSubmit);
-
-    startClock();
-    loadTasks();
-    setInterval(loadTasks, 5 * 60 * 1000);
+    // ===== INIT =====
+    window.addEventListener("DOMContentLoaded", () => {
+      logLine("TonyOS Command Board booted.");
+      setupConsoleInput();
+      loadBoard();
+      // Optional: auto-refresh every few minutes
+      // setInterval(loadBoard, 1000 * 60 * 3);
+    });
   </script>
 </body>
 </html>
